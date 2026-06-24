@@ -1,17 +1,16 @@
-import { useState } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import ChallengePage from '../pages/ChallengePage.jsx'
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import KahootChallenge from '../pages/ChallengePage';
+import AdminPage from '../components/AdminPage';
 
-function App() {
+export default function App() {
   return (
-    <>
-      <BrowserRouter>
-          <Routes>
-              <Route path="/" element={<ChallengePage />} />
-          </Routes>
-      </BrowserRouter>
-    </>
-  )
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<KahootChallenge />} />
+        
+        <Route path="/admin" element={<AdminPage />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
-
-export default App
