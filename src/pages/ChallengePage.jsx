@@ -3,6 +3,10 @@ import './ChallengePage.scss';
 import { db } from '../firebase';
 import {
   doc,
+  collection,
+  query,
+  orderBy,
+  limit,
   onSnapshot,
   runTransaction
 } from 'firebase/firestore';
@@ -10,18 +14,22 @@ import {
 const START_HOUR = 8;
 const START_MINUTE = 15;
 const INTERVAL_MINUTES = 45;
-const SLOTS_COUNT = 10; 
+const SLOTS_COUNT = 10;
 const RESET_SLOTS = Array.from({ length: SLOTS_COUNT }, (_, i) => {
   const totalMinutes = START_HOUR * 60 + START_MINUTE + i * INTERVAL_MINUTES;
   const h = Math.floor(totalMinutes / 60) % 24;
   const m = totalMinutes % 60;
-  return h * 60 + m; 
+  return h * 60 + m;
 });
+
+const LOCAL_STORAGE_CLEAR_INTERVAL_MS = 20 * 60 * 1000;
+const NEARBY_RADIUS = 2;
 
 const LESSON_DOC = doc(db, 'leaderboard', 'lesson');
 const ALL_TIME_DOC = doc(db, 'leaderboard', 'allTime');
 const RESET_META_DOC = doc(db, 'meta', 'reset');
-const CURRENT_QUESTION_DOC = doc(db, 'quiz', 'current'); // Документ с текущим вопросом
+const QUESTIONS_COLLECTION = collection(db, 'questions');
+const LATEST_QUESTION_QUERY = query(QUESTIONS_COLLECTION, orderBy('createdAt', 'desc'), limit(1));
 
 function getBishkekNow() {
   return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bishkek' }));
@@ -58,25 +66,48 @@ function addScoreToList(list, name, points) {
   return updated.sort((a, b) => b.points - a.points);
 }
 
+function getNearbySlice(list, name, radius = NEARBY_RADIUS) {
+  if (!list.length) return [];
+  const idx = list.findIndex((p) => p.name === name);
+  if (idx === -1) {
+    return list.slice(0, radius * 2 + 1).map((p, i) => ({ ...p, rank: i + 1 }));
+  }
+  let start = idx - radius;
+  let end = idx + radius + 1;
+  if (start < 0) {
+    end += -start;
+    start = 0;
+  }
+  if (end > list.length) {
+    start -= end - list.length;
+    end = list.length;
+    start = Math.max(0, start);
+  }
+  return list.slice(start, end).map((p, i) => ({ ...p, rank: start + i + 1 }));
+}
+
 export default function KahootChallenge() {
   const [step, setStep] = useState('empty');
-  
-  // 1. Сразу инициализируем nickname из localStorage, если он есть
+
   const [nickname, setNickname] = useState(() => {
     return localStorage.getItem('nickname') || '';
   });
-  
+
   const [answer, setAnswer] = useState('');
   const [leaderboardView, setLeaderboardView] = useState('lesson');
 
   const [lessonTop, setLessonTop] = useState([]);
   const [allTimeTop, setAllTimeTop] = useState([]);
-  
-  // Состояния для динамического вопроса
+
   const [currentQuestion, setCurrentQuestion] = useState({ id: '', text: 'Загрузка...', correctAnswer: '' });
   const [hasAnsweredCurrent, setHasAnsweredCurrent] = useState(false);
 
-  // Подписка на лидерборды И на текущий вопрос из базы
+  const [stats, setStats] = useState(() => {
+    const total = parseInt(localStorage.getItem('stats_total') || '0', 10);
+    const correct = parseInt(localStorage.getItem('stats_correct') || '0', 10);
+    return { total, correct };
+  });
+
   useEffect(() => {
     const unsubLesson = onSnapshot(LESSON_DOC, (snap) => {
       setLessonTop(snap.exists() ? snap.data().players || [] : []);
@@ -84,11 +115,12 @@ export default function KahootChallenge() {
     const unsubAllTime = onSnapshot(ALL_TIME_DOC, (snap) => {
       setAllTimeTop(snap.exists() ? snap.data().players || [] : []);
     });
-    const unsubQuestion = onSnapshot(CURRENT_QUESTION_DOC, (snap) => {
-      if (snap.exists()) {
-        const qData = snap.data();
+    const unsubQuestion = onSnapshot(LATEST_QUESTION_QUERY, (snap) => {
+      if (!snap.empty) {
+        const docSnap = snap.docs[0];
+        const qData = docSnap.data();
         setCurrentQuestion({
-          id: snap.id + '_' + (qData.id || 'default'), // уникальный ID вопроса
+          id: docSnap.id,
           text: qData.text || '',
           correctAnswer: qData.correctAnswer || ''
         });
@@ -102,22 +134,27 @@ export default function KahootChallenge() {
     };
   }, []);
 
-  // Проверка: отвечал ли уже пользователь на ЭТОТ вопрос?
   useEffect(() => {
-    if (currentQuestion.id) {
-      const answeredStatus = localStorage.getItem(`answered_${currentQuestion.id}`);
-      setHasAnsweredCurrent(!!answeredStatus);
-      
-      // Если на текущий вопрос уже отвечали, то не даем висеть на экране успеха старого ответа
-      if (answeredStatus && step === 'success') {
-        setAnswer(localStorage.getItem(`last_answer_${currentQuestion.id}`) || '');
-      } else if (!answeredStatus && step === 'success') {
-        setStep('empty'); // сброс экрана, если прилетел новый вопрос
+    if (!currentQuestion.id) return;
+
+    const answeredStatus = localStorage.getItem(`answered_${currentQuestion.id}`);
+    const hasAnswered = !!answeredStatus;
+
+    setHasAnsweredCurrent(hasAnswered);
+
+    if (hasAnswered) {
+      setAnswer(localStorage.getItem(`last_answer_${currentQuestion.id}`) || '');
+      if (step !== 'success') {
+        setStep('success');
+      }
+    } else {
+      setAnswer('');
+      if (step === 'success') {
+        setStep('empty');
       }
     }
-  }, [currentQuestion.id, step]);
+  }, [currentQuestion.id]);
 
-  // Сброс по расписанию
   useEffect(() => {
     const checkReset = async () => {
       const now = getBishkekNow();
@@ -143,7 +180,28 @@ export default function KahootChallenge() {
     return () => clearInterval(interval);
   }, []);
 
-  // Атомарное начисление очков
+  useEffect(() => {
+    const clearOldLocalStorage = () => {
+      const savedNickname = localStorage.getItem('nickname');
+      const savedTotal = localStorage.getItem('stats_total');
+      const savedCorrect = localStorage.getItem('stats_correct');
+
+      localStorage.clear();
+
+      if (savedNickname) localStorage.setItem('nickname', savedNickname);
+      if (savedTotal) localStorage.setItem('stats_total', savedTotal);
+      if (savedCorrect) localStorage.setItem('stats_correct', savedCorrect);
+
+      setHasAnsweredCurrent(false);
+      if (step === 'success') {
+        setStep('empty');
+      }
+    };
+
+    const interval = setInterval(clearOldLocalStorage, LOCAL_STORAGE_CLEAR_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [step]);
+
   const registerScore = async (name, points) => {
     try {
       await runTransaction(db, async (tx) => {
@@ -161,9 +219,7 @@ export default function KahootChallenge() {
     }
   };
 
-  // Логика кнопки действия на главном экране (Стать умником!)
   const handleStartChallenge = () => {
-    // Если никнейм уже сохранен, сразу перекидываем на вопрос
     if (nickname.trim()) {
       setStep('question');
     } else {
@@ -181,15 +237,19 @@ export default function KahootChallenge() {
   const handleSubmitAnswer = () => {
     const trimmedAnswer = answer.trim();
     const isCorrect = trimmedAnswer.toLowerCase() === currentQuestion.correctAnswer.trim().toLowerCase();
-    
-    // Начисляем очки
+
     registerScore(nickname.trim(), isCorrect ? 100 : 10);
-    
-    // Локально фиксируем, что на этот вопрос ответ отправлен
+
     localStorage.setItem(`answered_${currentQuestion.id}`, 'true');
     localStorage.setItem(`last_answer_${currentQuestion.id}`, trimmedAnswer);
+
+    const newTotal = stats.total + 1;
+    const newCorrect = stats.correct + (isCorrect ? 1 : 0);
+    localStorage.setItem('stats_total', String(newTotal));
+    localStorage.setItem('stats_correct', String(newCorrect));
+    setStats({ total: newTotal, correct: newCorrect });
+
     setHasAnsweredCurrent(true);
-    
     setStep('success');
   };
 
@@ -199,11 +259,14 @@ export default function KahootChallenge() {
   };
 
   const currentTop = leaderboardView === 'lesson' ? lessonTop : allTimeTop;
+  const nearbyTop = getNearbySlice(currentTop, nickname.trim(), NEARBY_RADIUS);
+
+  const percentCorrect = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
 
   return (
     <div className="kahoot-container">
       <div className="grid-overlay" />
-      
+
       <header className="page-header">
         <div className="brand">
           <span className="dot" /> CLASS SMART SPEAKER
@@ -231,6 +294,11 @@ export default function KahootChallenge() {
               <div className="crown-icon">👑</div>
               <h2>Трон пустует.</h2>
               <p>Кто готов принять вызов?</p>
+              {stats.total > 0 && (
+                <div className="accuracy-badge">
+                  ✅ Правильных ответов: {percentCorrect}% ({stats.correct}/{stats.total})
+                </div>
+              )}
               <div className="dots-indicator">•••••</div>
             </div>
           )}
@@ -242,6 +310,11 @@ export default function KahootChallenge() {
                 {currentQuestion.text} = <span className="highlight">{answer}</span>
               </h1>
               <p className="sub-result-text">Очки зачислены в таблицу лидеров!</p>
+              {stats.total > 0 && (
+                <p className="sub-result-text">
+                  Твоя точность: {percentCorrect}% ({stats.correct}/{stats.total})
+                </p>
+              )}
             </div>
           )}
 
@@ -265,13 +338,16 @@ export default function KahootChallenge() {
               </div>
 
               <div className="leaderboard-list">
-                {currentTop.length === 0 && (
+                {nearbyTop.length === 0 && (
                   <div className="leaderboard-empty">Пока никто не отвечал 🙈</div>
                 )}
-                {currentTop.map((player, index) => (
-                  <div key={player.name} className={`leaderboard-item rank-${index + 1}`}>
+                {nearbyTop.map((player) => (
+                  <div
+                    key={player.name}
+                    className={`leaderboard-item rank-${player.rank} ${player.name === nickname.trim() ? 'is-me' : ''}`}
+                  >
                     <div className="player-rank">
-                      {index === 0 ? '👑' : `#${index + 1}`}
+                      {player.rank === 1 ? '👑' : `#${player.rank}`}
                     </div>
                     <div className="player-name">{player.name}</div>
                     <div className="player-points">{player.points} XP</div>
@@ -287,18 +363,18 @@ export default function KahootChallenge() {
                 <button className="close-btn" onClick={() => setStep('empty')}>×</button>
                 <div className="modal-tag">✦ КЛАССНЫЙ БАТТЛ</div>
                 <h2 className="modal-title">Представься, знаток.</h2>
-                
+
                 <div className="input-group">
                   <label>ТВОЙ НИКНЕЙМ</label>
-                  <input 
-                    type="text" 
-                    placeholder="Введи свое имя..." 
+                  <input
+                    type="text"
+                    placeholder="Введи свое имя..."
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
                   />
                 </div>
 
-                <button 
+                <button
                   className={`action-btn ${nickname.trim() ? 'active' : ''}`}
                   disabled={!nickname.trim()}
                   onClick={handleSaveNickname}
@@ -315,7 +391,7 @@ export default function KahootChallenge() {
                 <button className="close-btn" onClick={() => setStep('empty')}>×</button>
                 <div className="modal-tag">✦ КЛАССНЫЙ БАТТЛ</div>
                 <h2 className="modal-title">Ответь, чтобы занять трон.</h2>
-                
+
                 <div className="question-box">
                   {currentQuestion.text}
                 </div>
@@ -328,9 +404,9 @@ export default function KahootChallenge() {
                   <>
                     <div className="input-group">
                       <label>ТВОЙ ОТВЕТ</label>
-                      <input 
-                        type="text" 
-                        placeholder="Введи ответ..." 
+                      <input
+                        type="text"
+                        placeholder="Введи ответ..."
                         value={answer}
                         onChange={(e) => setAnswer(e.target.value)}
                       />
@@ -338,7 +414,7 @@ export default function KahootChallenge() {
 
                     <span className="hint-link">Нужна подсказка?</span>
 
-                    <button 
+                    <button
                       className={`action-btn ${answer.trim() ? 'active' : ''}`}
                       disabled={!answer.trim()}
                       onClick={handleSubmitAnswer}
