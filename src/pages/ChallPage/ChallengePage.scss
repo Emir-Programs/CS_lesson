@@ -136,6 +136,8 @@ $text-light: #94a3b8;
 
 .empty-throne {
   text-align: center;
+  display: flex;
+  flex-direction: row;
   
   .crown-icon {
     font-size: 48px;

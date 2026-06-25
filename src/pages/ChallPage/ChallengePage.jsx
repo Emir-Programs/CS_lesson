@@ -62,6 +62,7 @@ export default function ChallengePage() {
   const nearbyTop = getNearbySlice(currentTop, nickname.trim());
   const percentCorrect = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
 
+
   return (
     <div className="kahoot-container">
       <div className="grid-overlay" />

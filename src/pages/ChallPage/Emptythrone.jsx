@@ -12,12 +12,26 @@ export default function EmptyThrone({ stats, percentCorrect, leaderboardView, se
         </div>
       )}
       <div className="dots-indicator">•••••</div>
-      import React from 'react';
 
 
     <div className="leaderboard-screen">
       <h2 className="leaderboard-title">Топ</h2>
-
+      
+      <div className="leaderboard-tabs">
+        <button
+          className={leaderboardView === 'lesson' ? 'active' : ''}
+          onClick={() => setLeaderboardView('lesson')}
+        >
+          Топ урока
+        </button>
+        <button
+          className={leaderboardView === 'all' ? 'active' : ''}
+          onClick={() => setLeaderboardView('all')}
+        >
+          Общий топ
+        </button>
+      </div>
+      
       <div className="leaderboard-list">
         {nearbyTop.length === 0 && (
           <div className="leaderboard-empty">Пока никто не отвечал </div>

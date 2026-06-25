@@ -3,7 +3,7 @@ import React from 'react';
 export default function LeaderboardScreen({ leaderboardView, setLeaderboardView, nearbyTop, nickname }) {
   return (
     <div className="leaderboard-screen">
-      <h2 className="leaderboard-title">Топ за урок</h2>
+      <h2 className="leaderboard-title">Топы</h2>
 
       <div className="leaderboard-tabs">
         <button
