@@ -1,4 +1,3 @@
-// Переменные дизайна
 $bg-dark: #0a0f1d;
 $card-bg: #0e1626;
 $border-purple: #3b2d54;
@@ -6,7 +5,7 @@ $accent-purple: #5842e3;
 $text-muted: #4e5d78;
 $text-light: #94a3b8;
 
-.challenge-container {
+.kahoot-container {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -15,9 +14,8 @@ $text-light: #94a3b8;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   position: relative;
   overflow: hidden;
-  padding: 16px 24px calc(80px + 16px) 24px; // место под фиксированный футер
+  padding: 16px 24px calc(80px + 16px) 24px;
 
-  // Тонкая неоновая сетка на фоне
   .grid-overlay {
     position: absolute;
     inset: 0;
@@ -30,7 +28,6 @@ $text-light: #94a3b8;
   }
 }
 
-// Шапка страницы
 .page-header {
   position: relative;
   z-index: 2;
@@ -55,6 +52,28 @@ $text-light: #94a3b8;
     }
   }
 
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+
+    .top-toggle-btn {
+      background: rgba($accent-purple, 0.2);
+      border: 1px solid $border-purple;
+      color: #ffffff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+
+      &:hover {
+        background: rgba($accent-purple, 0.4);
+      }
+    }
+  }
+
   .live-status {
     display: flex;
     align-items: center;
@@ -70,7 +89,6 @@ $text-light: #94a3b8;
   }
 }
 
-// Контентная зона
 .main-content {
   flex: 1;
   display: flex;
@@ -82,7 +100,6 @@ $text-light: #94a3b8;
   background-color: rgba($card-bg, 0.4);
   backdrop-filter: blur(8px);
 
-  // Боковой вертикальный бейдж с 4-го скрина
   .sidebar-badge {
     position: absolute;
     left: 12px;
@@ -117,7 +134,6 @@ $text-light: #94a3b8;
   padding: 40px;
 }
 
-// ЭКРАН 1: Пустой трон
 .empty-throne {
   text-align: center;
   
@@ -131,7 +147,7 @@ $text-light: #94a3b8;
   h2 {
     font-size: 28px;
     font-weight: 800;
-    color: #2d3748; // Темный глубокий цвет текста по макету
+    color: #2d3748;
     margin: 0 0 4px 0;
   }
 
@@ -148,10 +164,9 @@ $text-light: #94a3b8;
   }
 }
 
-// ЭКРАН 4: Финальный ответ
 .success-screen {
   width: 100%;
-  padding-left: 60px; // отступ от вертикального бейджа
+  padding-left: 60px;
 
   .success-meta {
     font-size: 10px;
@@ -174,7 +189,70 @@ $text-light: #94a3b8;
   }
 }
 
-// МОДАЛЬНЫЕ ОКНА (UI из Скринов 2 и 3)
+.leaderboard-screen {
+  width: 100%;
+  max-width: 500px;
+  
+  .leaderboard-title {
+    font-size: 24px;
+    font-weight: 800;
+    text-align: center;
+    margin-bottom: 24px;
+    color: #ffffff;
+  }
+
+  .leaderboard-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .leaderboard-item {
+    display: flex;
+    align-items: center;
+    background: rgba($card-bg, 0.8);
+    border: 1px solid rgba($border-purple, 0.5);
+    padding: 14px 20px;
+    border-radius: 12px;
+    transition: transform 0.2s;
+
+    &:hover {
+      transform: scale(1.02);
+    }
+
+    .player-rank {
+      font-size: 16px;
+      font-weight: 800;
+      width: 40px;
+      color: $text-light;
+    }
+
+    .player-name {
+      flex: 1;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .player-points {
+      font-size: 14px;
+      font-weight: 700;
+      color: #3b82f6;
+      background: rgba(59, 130, 246, 0.1);
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+
+    &.rank-1 {
+      border-color: #eab308;
+      background: linear-gradient(90deg, rgba(234, 179, 8, 0.05), rgba($card-bg, 0.8));
+      .player-points {
+        color: #eab308;
+        background: rgba(234, 179, 8, 0.1);
+      }
+    }
+  }
+}
+
 .modal-backdrop {
   position: absolute;
   inset: 0;
@@ -205,7 +283,6 @@ $text-light: #94a3b8;
     color: #475569;
     font-size: 24px;
     cursor: pointer;
-    transition: color 0.2s;
     &:hover { color: #ffffff; }
   }
 
@@ -225,7 +302,6 @@ $text-light: #94a3b8;
   }
 }
 
-// Поле вопроса (Экран 3)
 .question-box {
   background-color: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -236,7 +312,6 @@ $text-light: #94a3b8;
   margin-bottom: 20px;
 }
 
-// Кастомные инпуты
 .input-group {
   display: flex;
   flex-direction: column;
@@ -259,7 +334,6 @@ $text-light: #94a3b8;
     font-size: 15px;
     font-family: monospace;
     outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
 
     &:focus {
       border-color: lighten($border-purple, 20%);
@@ -281,7 +355,6 @@ $text-light: #94a3b8;
   &:hover { color: $text-light; }
 }
 
-// Кнопки действий внутри модалок
 .action-btn {
   width: 100%;
   padding: 14px;
@@ -290,16 +363,12 @@ $text-light: #94a3b8;
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
-  
-  // По дефолту выключена (темная)
   background: linear-gradient(135deg, #1e1b4b, #0f172a);
   color: #475569;
 
   &.active {
     background: linear-gradient(135deg, #3b2d93, #1e3a8a);
     color: #ffffff;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     
     &:hover {
       transform: translateY(-1px);
@@ -308,7 +377,6 @@ $text-light: #94a3b8;
   }
 }
 
-// НИЖНИЙ ФУТЕР И ГЛАВНАЯ КНОПКА
 .page-footer {
   position: fixed;
   bottom: 16px;
