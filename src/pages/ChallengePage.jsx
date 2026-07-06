@@ -1,24 +1,150 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './ChallengePage.scss';
+import { db } from '../firebase';
+import {
+  doc,
+  onSnapshot,
+  runTransaction,
+  setDoc
+} from 'firebase/firestore';
+
+const START_HOUR = 8;
+const START_MINUTE = 15;
+const INTERVAL_MINUTES = 45;
+const SLOTS_COUNT = 10; 
+const RESET_SLOTS = Array.from({ length: SLOTS_COUNT }, (_, i) => {
+  const totalMinutes = START_HOUR * 60 + START_MINUTE + i * INTERVAL_MINUTES;
+  const h = Math.floor(totalMinutes / 60) % 24;
+  const m = totalMinutes % 60;
+  return h * 60 + m; 
+});
+
+// Коллекция "meta":
+//   doc "reset"   -> { marker: "..." }                 — общий для всех устройств маркер
+//                                                          последнего выполненного сброса
+const LESSON_DOC = doc(db, 'leaderboard', 'lesson');
+const ALL_TIME_DOC = doc(db, 'leaderboard', 'allTime');
+const RESET_META_DOC = doc(db, 'meta', 'reset');
+
+// Текущее время в Бишкеке
+function getBishkekNow() {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bishkek' }));
+}
+
+// Уникальный "маркер" последнего пройденного слота сброса на сегодня.
+// Находит последний слот из расписания, который уже наступил, и возвращает
+// его вместе с датой — так сброс срабатывает один раз за каждый слот,
+// даже если приложение не было открыто в момент самого сброса.
+function getResetMarker(now) {
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  let lastPassedSlot = null;
+  for (const slot of RESET_SLOTS) {
+    if (slot <= nowMinutes) {
+      lastPassedSlot = slot;
+    }
+  }
+
+  if (lastPassedSlot === null) {
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday.toDateString() + ' none';
+  }
+
+  return now.toDateString() + ' ' + lastPassedSlot;
+}
+
+function addScoreToList(list, name, points) {
+  const existingIndex = list.findIndex((p) => p.name === name);
+  let updated;
+  if (existingIndex >= 0) {
+    updated = [...list];
+    updated[existingIndex] = {
+      ...updated[existingIndex],
+      points: updated[existingIndex].points + points
+    };
+  } else {
+    updated = [...list, { name, points }];
+  }
+  return updated.sort((a, b) => b.points - a.points);
+}
 
 export default function KahootChallenge() {
-  const [step, setStep] = useState('empty'); 
+  const [step, setStep] = useState('empty');
   const [nickname, setNickname] = useState('');
   const [answer, setAnswer] = useState('');
+  const [leaderboardView, setLeaderboardView] = useState('lesson'); // 'lesson' | 'all'
 
-  const topPlayers = [
-    { id: 1, name: 'QuantumHamster', points: 2500 },
-    { id: 2, name: 'CyberCat', points: 2100 },
-    { id: 3, name: 'MegaBrain', points: 1800 },
-    { id: 4, name: 'SmartOwl', points: 1500 },
-    { id: 5, name: 'TechWiz', points: 1200 }
-  ];
+  const [lessonTop, setLessonTop] = useState([]);
+  const [allTimeTop, setAllTimeTop] = useState([]);
+
+  // Живая подписка на топ урока и общий топ — обновляются у всех в реальном времени
+  useEffect(() => {
+    const unsubLesson = onSnapshot(LESSON_DOC, (snap) => {
+      setLessonTop(snap.exists() ? snap.data().players || [] : []);
+    });
+    const unsubAllTime = onSnapshot(ALL_TIME_DOC, (snap) => {
+      setAllTimeTop(snap.exists() ? snap.data().players || [] : []);
+    });
+    return () => {
+      unsubLesson();
+      unsubAllTime();
+    };
+  }, []);
+
+  // Проверка и выполнение сброса топа урока по времени Кыргызстана.
+  // Маркер сброса хранится в Firestore, поэтому сброс синхронный для всех устройств —
+  // не важно, кто из учеников/учителей открыл приложение первым.
+  useEffect(() => {
+    const checkReset = async () => {
+      const now = getBishkekNow();
+      const currentMarker = getResetMarker(now);
+
+      try {
+        await runTransaction(db, async (tx) => {
+          const metaSnap = await tx.get(RESET_META_DOC);
+          const lastMarker = metaSnap.exists() ? metaSnap.data().marker : null;
+
+          if (currentMarker !== lastMarker) {
+            tx.set(RESET_META_DOC, { marker: currentMarker });
+            tx.set(LESSON_DOC, { players: [] });
+          }
+        });
+      } catch (e) {
+        console.error('Ошибка проверки сброса топа:', e);
+      }
+    };
+
+    checkReset();
+    const interval = setInterval(checkReset, 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Начисление очков — атомарно обновляет оба документа в Firestore
+  const registerScore = async (name, points) => {
+    try {
+      await runTransaction(db, async (tx) => {
+        const lessonSnap = await tx.get(LESSON_DOC);
+        const allTimeSnap = await tx.get(ALL_TIME_DOC);
+
+        const lessonPlayers = lessonSnap.exists() ? lessonSnap.data().players || [] : [];
+        const allTimePlayers = allTimeSnap.exists() ? allTimeSnap.data().players || [] : [];
+
+        tx.set(LESSON_DOC, { players: addScoreToList(lessonPlayers, name, points) });
+        tx.set(ALL_TIME_DOC, { players: addScoreToList(allTimePlayers, name, points) });
+      });
+    } catch (e) {
+      console.error('Ошибка начисления очков:', e);
+    }
+  };
 
   const resetFlow = () => {
     setStep('empty');
     setNickname('');
     setAnswer('');
   };
+
+  const currentTop = leaderboardView === 'lesson' ? lessonTop : allTimeTop;
 
   return (
     <div className="kahoot-container">
@@ -67,9 +193,28 @@ export default function KahootChallenge() {
           {step === 'leaderboard' && (
             <div className="leaderboard-screen">
               <h2 className="leaderboard-title">🏆 Таблица лидеров класса</h2>
+
+              <div className="leaderboard-tabs">
+                <button
+                  className={leaderboardView === 'lesson' ? 'active' : ''}
+                  onClick={() => setLeaderboardView('lesson')}
+                >
+                  Топ урока
+                </button>
+                <button
+                  className={leaderboardView === 'all' ? 'active' : ''}
+                  onClick={() => setLeaderboardView('all')}
+                >
+                  Общий топ
+                </button>
+              </div>
+
               <div className="leaderboard-list">
-                {topPlayers.map((player, index) => (
-                  <div key={player.id} className={`leaderboard-item rank-${index + 1}`}>
+                {currentTop.length === 0 && (
+                  <div className="leaderboard-empty">Пока никто не отвечал 🙈</div>
+                )}
+                {currentTop.map((player, index) => (
+                  <div key={player.name} className={`leaderboard-item rank-${index + 1}`}>
                     <div className="player-rank">
                       {index === 0 ? '👑' : `#${index + 1}`}
                     </div>
@@ -135,7 +280,11 @@ export default function KahootChallenge() {
                 <button 
                   className={`action-btn ${answer.trim() ? 'active' : ''}`}
                   disabled={!answer.trim()}
-                  onClick={() => setStep('success')}
+                  onClick={() => {
+                    const isCorrect = answer.trim() === '12';
+                    registerScore(nickname.trim() || 'Игрок', isCorrect ? 100 : 10);
+                    setStep('success');
+                  }}
                 >
                   Отправить ответ ⚡
                 </button>
