@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import Header from '../components/Header.jsx'
-function App() {
+import ChallengePage from '../pages/ChallengePage.jsx'
 
+function App() {
   return (
     <>
       <BrowserRouter>
-          <Header/>
           <Routes>
-            
+              <Route path="/" element={<ChallengePage />} />
           </Routes>
       </BrowserRouter>
     </>
