@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
+import { runTransaction } from 'firebase/firestore';
+import { addScoreToList } from '../pages/ChallPage/Utils'; 
+import { ALL_TIME_DOC } from '../pages/ChallPage/Constants';
 import {
   doc,
   collection,
@@ -102,7 +105,37 @@ export default function AdminPage() {
       alert('Рейтинг сброшен!');
     }
   };
+const TEST_NAMES = [
+  'Тест 1', 'Тест 2', 'Тест 3', 'Тест 4', 'Тест 5',
+  'Тест 6', 'Тест 7', 'Тест 8', 'Тест 9', 'Тест 10'
+];
 
+const handleAddTestPlayers = async () => {
+  if (!window.confirm('Добавить 10 тестовых игроков в рейтинг?')) return;
+
+  try {
+    await runTransaction(db, async (tx) => {
+      const lessonSnap = await tx.get(LESSON_DOC);
+      const allTimeSnap = await tx.get(ALL_TIME_DOC);
+
+      let lessonPlayers = lessonSnap.exists() ? lessonSnap.data().players || [] : [];
+      let allTimePlayers = allTimeSnap.exists() ? allTimeSnap.data().players || [] : [];
+
+      TEST_NAMES.forEach((name) => {
+        const points = Math.floor(Math.random() * 5) * 100 + 10; // случайные очки: 10, 110, 210...510
+        lessonPlayers = addScoreToList(lessonPlayers, name, points);
+        allTimePlayers = addScoreToList(allTimePlayers, name, points);
+      });
+
+      tx.set(LESSON_DOC, { players: lessonPlayers });
+      tx.set(ALL_TIME_DOC, { players: allTimePlayers });
+    });
+    alert('10 тестовых игроков добавлено!');
+  } catch (e) {
+    console.error('Ошибка добавления тестовых игроков:', e);
+    alert('Ошибка при добавлении. Смотри консоль.');
+  }
+};
   if (!isAuthorized) {
     return (
       <div className="kahoot-container">
@@ -146,7 +179,15 @@ export default function AdminPage() {
       </header>
 
       <main className="main-content" style={{ display: 'block', maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
-        
+        <section style={{ background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
+  <h3>⚡ Быстрые действия</h3>
+  <button className="top-toggle-btn" style={{ background: '#f59f00', width: '100%', padding: '12px', marginTop: '10px' }} onClick={handleResetLeaderboard}>
+    ⚠️ Сбросить топ текущего урока (вручную)
+  </button>
+  <button className="top-toggle-btn" style={{ background: '#7048e8', width: '100%', padding: '12px', marginTop: '10px' }} onClick={handleAddTestPlayers}>
+    🧪 Добавить 10 тестовых игроков
+  </button>
+</section>
         <section style={{ background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '12px', marginBottom: '20px' }}>
           <h3>⚡ Быстрые действия</h3>
           <button className="top-toggle-btn" style={{ background: '#f59f00', width: '100%', padding: '12px', marginTop: '10px' }} onClick={handleResetLeaderboard}>

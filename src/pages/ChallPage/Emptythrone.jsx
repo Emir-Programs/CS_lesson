@@ -3,15 +3,13 @@ import React from 'react';
 export default function EmptyThrone({ stats, percentCorrect, leaderboardView, setLeaderboardView, nearbyTop, nickname }) {
   return (
     <div className="empty-throne">
-      <div className="crown-icon">👑</div>
-      <h2>Начни покарять топы</h2>
-      <p>Кто готов принять вызов?</p>
+     
       {stats.total > 0 && (
         <div className="accuracy-badge">
-          ✅ Правильных ответов: {percentCorrect}% ({stats.correct}/{stats.total})
+          <h1 className="accuracy-badge__title">Правильных ответов:</h1>
+          <h1 className='accuracy-badge__value' >{percentCorrect}% ({stats.correct}/{stats.total})</h1>
         </div>
       )}
-      <div className="dots-indicator">•••••</div>
 
 
     <div className="leaderboard-screen">
@@ -31,7 +29,7 @@ export default function EmptyThrone({ stats, percentCorrect, leaderboardView, se
           Общий топ
         </button>
       </div>
-      
+
       <div className="leaderboard-list">
         {nearbyTop.length === 0 && (
           <div className="leaderboard-empty">Пока никто не отвечал </div>
@@ -39,7 +37,7 @@ export default function EmptyThrone({ stats, percentCorrect, leaderboardView, se
         {nearbyTop.map((player) => (
           <div
             key={player.name}
-            className={`leaderboard-item rank-${player.rank} ${player.name === nickname.trim() ? 'is-me' : ''}`}
+            className={`leaderboard-item rank-${player.rank} ${player.name === nickname.trim() ? 'is-me' : 'dfga'}`}
           >
             <div className="player-rank">
               {player.rank === 1 ? '👑' : `#${player.rank}`}

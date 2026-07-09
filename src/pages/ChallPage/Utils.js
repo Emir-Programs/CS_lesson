@@ -54,3 +54,8 @@ export function getNearbySlice(list, name, radius = NEARBY_RADIUS) {
   }
   return list.slice(start, end).map((p, i) => ({ ...p, rank: start + i + 1 }));
 }
+
+export function getTopsFive(list, name, count = 5) {
+  if (!list.length) return [];
+  return list.slice(0, count).map((p, i) => ({ ...p, rank: i + 1 }));
+}

@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { onSnapshot, runTransaction } from 'firebase/firestore';
+import { doc, onSnapshot, runTransaction } from 'firebase/firestore';
 import { db } from '../../firebase';
 import {
   LESSON_DOC,
   ALL_TIME_DOC,
-  RESET_META_DOC,
-  LATEST_QUESTION_QUERY
+  RESET_META_DOC
 } from './constants';
 import { getBishkekNow, getResetMarker, addScoreToList } from './utils';
+
+const CURRENT_QUESTION_DOC = doc(db, 'quiz', 'current');
 
 export function useLeaderboards() {
   const [lessonTop, setLessonTop] = useState([]);
@@ -21,12 +22,11 @@ export function useLeaderboards() {
     const unsubAllTime = onSnapshot(ALL_TIME_DOC, (snap) => {
       setAllTimeTop(snap.exists() ? snap.data().players || [] : []);
     });
-    const unsubQuestion = onSnapshot(LATEST_QUESTION_QUERY, (snap) => {
-      if (!snap.empty) {
-        const docSnap = snap.docs[0];
-        const qData = docSnap.data();
+    const unsubQuestion = onSnapshot(CURRENT_QUESTION_DOC, (snap) => {
+      if (snap.exists()) {
+        const qData = snap.data();
         setCurrentQuestion({
-          id: docSnap.id,
+          id: qData.db_id || snap.id,
           text: qData.text || '',
           correctAnswer: qData.correctAnswer || ''
         });

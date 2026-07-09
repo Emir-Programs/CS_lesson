@@ -3,7 +3,7 @@ import React from 'react';
 export default function SuccessScreen({ currentQuestion, answer, stats, percentCorrect }) {
   return (
     <div className="success-screen">
-      <div className="success-meta">● LIVE — ОТВЕТ ПРИНЯТ</div>
+      <div className="success-meta">ОТВЕТ ПРИНЯТ</div>
       <h1 className="result-text">
         {currentQuestion.text} = <span className="highlight">{answer}</span>
       </h1>

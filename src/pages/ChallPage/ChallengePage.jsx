@@ -3,13 +3,14 @@ import './ChallengePage.scss';
 
 import { useLeaderboards } from './useLeaderboards';
 import { usePlayerLocalState } from './Useplayerlocalstate.js';
-import { getNearbySlice } from './utils';
+import { getNearbySlice, getTopsFive} from './utils';
 
 import EmptyThrone from './EmptyThrone';
 import SuccessScreen from './SuccessScreen';
 import LeaderboardScreen from './Leaderboardscreen.jsx';
 import NicknameModal from './NicknameModal';
 import QuestionModal from './QuestionModal';
+import { Navigate, useNavigate } from 'react-router-dom';
 
 export default function ChallengePage() {
   const [step, setStep] = useState('empty');
@@ -61,19 +62,22 @@ export default function ChallengePage() {
   const currentTop = leaderboardView === 'lesson' ? lessonTop : allTimeTop;
   const nearbyTop = getNearbySlice(currentTop, nickname.trim());
   const percentCorrect = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
-
-
+  const top = getTopsFive(currentTop, nickname.trim());
+  let navigate = useNavigate()
   return (
     <div className="kahoot-container">
       <div className="grid-overlay" />
 
       <header className="page-header">
         <div className="brand">
-          <span className="dot" /> CLASS SMART SPEAKER
+          {nickname}
         </div>
         <div className="header-controls">
           <button className="top-toggle-btn" onClick={() => setStep('leaderboard')}>
             🏆 ТОП ИГРОКОВ
+          </button>
+          <button className='top-toggle-btn' onClick={() => navigate('/admin')}>
+            Админка
           </button>
           <div className="live-status">
             В ЭФИРЕ <span className="live-dot" />
@@ -112,7 +116,7 @@ export default function ChallengePage() {
             <LeaderboardScreen
               leaderboardView={leaderboardView}
               setLeaderboardView={setLeaderboardView}
-              nearbyTop={nearbyTop}
+              nearbyTop={top}
               nickname={nickname}
             />
           )}
