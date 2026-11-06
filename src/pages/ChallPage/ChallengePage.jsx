@@ -3,7 +3,7 @@ import './ChallengePage.scss';
 
 import { useLeaderboards } from './useLeaderboards';
 import { usePlayerLocalState } from './Useplayerlocalstate.js';
-import { getNearbySlice, getTopsFive} from './utils';
+import { getNearbySlice, getTopsFive} from './Utils';
 
 import EmptyThrone from './EmptyThrone';
 import SuccessScreen from './SuccessScreen';
