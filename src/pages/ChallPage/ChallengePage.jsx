@@ -29,6 +29,8 @@ export default function ChallengePage() {
     recordAnswer
   } = usePlayerLocalState(currentQuestion.id, step, setStep);
 
+  const navigate = useNavigate();
+
   const handleStartChallenge = () => {
     if (nickname.trim()) {
       setStep('question');
@@ -59,11 +61,21 @@ export default function ChallengePage() {
     setAnswer('');
   };
 
+  // Функция проверки пароля для админки
+  const handleAdminClick = () => {
+    const password = window.prompt('Введите пароль администратора:');
+    if (password === 'aksosh2020') {
+      navigate('/admin');
+    } else if (password !== null) {
+      alert('Неверный пароль!');
+    }
+  };
+
   const currentTop = leaderboardView === 'lesson' ? lessonTop : allTimeTop;
   const nearbyTop = getNearbySlice(currentTop, nickname.trim());
   const percentCorrect = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
   const top = getTopsFive(currentTop, nickname.trim());
-  let navigate = useNavigate()
+
   return (
     <div className="kahoot-container">
       <div className="grid-overlay" />
@@ -76,7 +88,7 @@ export default function ChallengePage() {
           <button className="top-toggle-btn" onClick={() => setStep('leaderboard')}>
             🏆 ТОП ИГРОКОВ
           </button>
-          <button className='top-toggle-btn' onClick={() => navigate('/admin')}>
+          <button className='top-toggle-btn' onClick={handleAdminClick}>
             Админка
           </button>
           <div className="live-status">
@@ -95,12 +107,12 @@ export default function ChallengePage() {
         <div className="card-wrapper">
           {step === 'empty' && (
             <EmptyThrone 
-            stats={stats} 
-            percentCorrect={percentCorrect} 
-            leaderboardView={leaderboardView}
-            setLeaderboardView={setLeaderboardView}
-            nearbyTop={nearbyTop}
-            nickname={nickname} />
+              stats={stats} 
+              percentCorrect={percentCorrect} 
+              leaderboardView={leaderboardView}
+              setLeaderboardView={setLeaderboardView}
+              nearbyTop={nearbyTop}
+              nickname={nickname} />
           )}
 
           {step === 'success' && (
