@@ -8,7 +8,7 @@ import { getNearbySlice, getTopsFive} from './utils';
 import EmptyThrone from './EmptyThrone';
 import SuccessScreen from './SuccessScreen';
 import LeaderboardScreen from './Leaderboardscreen.jsx';
-import NicknameModal from './NicknameModal';
+import NicknameModal from './Nicknamemodal.jsx';
 import QuestionModal from './QuestionModal';
 import { Navigate, useNavigate } from 'react-router-dom';
 
