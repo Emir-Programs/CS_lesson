@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import './ChallengePage.scss';
 
-import { useLeaderboards } from './useLeaderboards';
+import { useLeaderboards } from './UseLeaderboards';
 import { usePlayerLocalState } from './Useplayerlocalstate.js';
 import { getNearbySlice, getTopsFive} from './Utils';
 
 import EmptyThrone from './EmptyThrone';
 import SuccessScreen from './SuccessScreen';
-import LeaderboardScreen from './Leaderboardscreen.jsx';
+import LeaderboardScreen from './LeaderboardScreen.jsx';
 import NicknameModal from './NicknameModal.jsx';
 import QuestionModal from './QuestionModal';
 import { Navigate, useNavigate } from 'react-router-dom';
